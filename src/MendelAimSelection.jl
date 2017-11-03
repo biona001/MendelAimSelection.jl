@@ -121,6 +121,31 @@ function aim_selection_option(person::Person, snpdata::SnpData,
   #
   for snp = 1:snps
     if snpdata.maf[snp] <= 0.01; continue; end
+    construct_pvalue_vec!(dosage, snpdata, snp, alleles, genes, ethnic, 
+        population, person, populations, people, pvalue)
+  end
+  #
+  # Rank SNPs by their p-values and deposit the rank of each SNP
+  # in the SNP definition frame.
+  #
+  aim_rank = ordinalrank(pvalue)
+  snp_definition_frame[:AIMRank] = aim_rank
+  #
+  # Display the SNP's AIM rank on the screen and in a file, if requested.
+  #
+  show(snp_definition_frame)
+  output_file = keyword["output_file"]
+  if output_file != ""
+    writetable(output_file, snp_definition_frame)
+  end
+
+  return execution_error = false
+end # function aim_selection_option
+
+function construct_pvalue_vec!(dosage::Array{Float64}, snpdata::SnpData, snp::Int64, 
+    alleles::Array{Float64}, genes::Array{Float64}, ethnic::Array{AbstractString,1}, 
+    population::Array{String,1}, person::Person, populations::Int64, 
+    people::Int64, pvalue::Array{Float64})
     #
     # Copy the current SNP genotypes into a dosage vector.
     #
@@ -169,24 +194,7 @@ function aim_selection_option(person::Person, snpdata::SnpData,
       lrt = 2.0*(lrt - x * log(p) - (n - x)*log(1.0 - p))
       pvalue[snp] = ccdf(Chisq(1), lrt) 
     end
-  end
-  #
-  # Rank SNPs by their p-values and deposit the rank of each SNP
-  # in the SNP definition frame.
-  #
-  aim_rank = ordinalrank(pvalue)
-  snp_definition_frame[:AIMRank] = aim_rank
-  #
-  # Display the SNP's AIM rank on the screen and in a file, if requested.
-  #
-  show(snp_definition_frame)
-  output_file = keyword["output_file"]
-  if output_file != ""
-    writetable(output_file, snp_definition_frame)
-  end
-
-  return execution_error = false
-end # function aim_selection_option
+end
 
 end # module MendelAimSelection
 
