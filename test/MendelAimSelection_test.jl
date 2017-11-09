@@ -45,16 +45,64 @@ using Distributions
     end
 
     @test signif(pvalue[1], 5) == 0.0021199
-    @test signif(pvalue[2], 5) == 0.0022310 # would be 1 in real run because minor allele freq < 1
+    @test signif(pvalue[2], 5) == 0.0022310 # would be 1 in real run because minor allele freq ≤ 0.01
+                                            # to check minor allele freq: snpdata.maf[snp]  
     @test signif(pvalue[3], 5) == 4.95e-8
     @test signif(pvalue[4], 5) == 1.7162e-5
-    @test signif(pvalue[5], 5) == 0.033521
+    @test signif(pvalue[5], 5) == 0.033521 # would be 1 in real run because minor allele freq ≤ 0.01
 
     @test signif(pvalue[100504], 5) == 0.0020991
     @test signif(pvalue[100505], 5) == 0.00082908
     @test signif(pvalue[100506], 5) == 0.00082908
     @test signif(pvalue[100507], 5) == 0.024556
     @test signif(pvalue[100508], 5) == 0.061064
+end
+
+@testset "construct_pvalue_vec! for Xlinked" begin
+    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+    process_keywords!(keyword, "AIM 1000genomes_chrX Control.txt", "")
+    (pedigree, person, nuclear_family, locus, snpdata,
+    locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
+        read_external_data_files(keyword)
+
+    populations = person.populations
+    people = person.people
+    snps = snpdata.snps
+    ethnic = blanks(people)
+    copy!(ethnic, pedigree_frame[:Ethnic])
+    population = unique(ethnic)
+    populations = length(population)
+    alleles = zeros(populations)
+    # alleles = vector of races. Given a SNP, it counts how many people in each race contains
+    # that SNP in your population sample. Half will be added for those on sex chromosomes.
+    genes = zeros(populations)
+    # genes = vector of races. Given a SNP, it counts how many copies of the chromosome
+    # under consideration is in a race (1 on each chromosome for non-sex linked genes)
+    dosage = zeros(people) # a particular SNP, 1 if person has that SNP, 0 otherwise
+    pvalue = ones(snps)
+    
+    for i in 1:5 # 1st to 5th SNP
+        MendelAimSelection.construct_pvalue_vec!(dosage, snpdata, i, alleles, genes, ethnic, 
+        population, person, populations, people, pvalue)
+    end
+
+    for i in 100127:100131 # last 5 SNPs
+        MendelAimSelection.construct_pvalue_vec!(dosage, snpdata, i, alleles, genes, ethnic, 
+        population, person, populations, people, pvalue)
+    end
+
+    @test signif(pvalue[1], 5) == 0.00065094
+    @test signif(pvalue[2], 5) == 1.0 # nobody have this SNP, so ratio test wouldn't be performed
+                                      # So it defaults to pvalue = 1.0 
+    @test signif(pvalue[3], 5) == 0.00051826
+    @test signif(pvalue[4], 5) == 0.062789
+    @test signif(pvalue[5], 5) == 0.053068
+
+    @test signif(pvalue[100127], 5) == 0.0010710
+    @test signif(pvalue[100128], 5) == 4.9793e-6
+    @test signif(pvalue[100129], 5) == 1.0 # nobody have this SNP, so ratio test wouldn't be performed 
+    @test signif(pvalue[100130], 5) == 1.0 # nobody have this SNP, so ratio test wouldn't be performed 
+    @test signif(pvalue[100131], 5) == 6.9152e-6
 end
 
 @testset "basics" begin
@@ -90,6 +138,7 @@ end
     @test final_test_2 == nothing #i.e. no error, so everything went through
 end
 
+#coverage = 72/75 lines for MendelAimSelection.jl
 
 
 
